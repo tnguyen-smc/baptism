@@ -74,9 +74,9 @@ export async function initAuth() {
   initialized = true;
 }
 
-export function renderSignInButton(el) {
+export function renderSignInButton(el, { autoPrompt = true } = {}) {
   window.google.accounts.id.renderButton(el, { theme: "outline", size: "large", width: 300, text: "signin_with" });
-  window.google.accounts.id.prompt();
+  if (autoPrompt) window.google.accounts.id.prompt();
 }
 
 /** A valid token, refreshing silently when the old one is near expiry. */

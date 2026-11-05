@@ -32,10 +32,13 @@ export default function App() {
 
   const load = useCallback(() => {
     setError(null);
-    return api.bootstrap().then(setBoot).catch((e) => { if (e.code !== "auth") setError(e.message); });
+    // Show the server's reason on the login screen (e.g. "not on the Staff list", "different app").
+    return api.bootstrap().then(setBoot).catch((e) => setError(e.message));
   }, []);
 
   useEffect(() => { if (user) load(); else setBoot(null); }, [user?.email, load]);
+  // A successful new sign-in clears the previous error.
+  useEffect(() => onAuthChange((u) => { if (u) setError(null); }), []);
 
   const upsertSummary = useCallback((rec) => {
     setBoot((b) => {
