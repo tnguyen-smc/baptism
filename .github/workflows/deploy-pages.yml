@@ -29,13 +29,34 @@ jobs:
         with:
           node-version: 20
 
+      # Finds the folder holding vite.config.js, so it works whether the app is at
+      # web/, baptism/web/, or the repo root.
+      - name: Locate the app
+        id: app
+        run: |
+          DIR=$(dirname "$(find . -name vite.config.js -not -path '*/node_modules/*' | head -n 1)")
+          if [ -z "$DIR" ] || [ "$DIR" = "." ] && [ ! -f vite.config.js ]; then
+            echo "::error::No vite.config.js found. Upload the contents of the web/ folder from baptism.zip."
+            ls -la; exit 1
+          fi
+          echo "Building the app in: $DIR"
+          echo "dir=$DIR" >> "$GITHUB_OUTPUT"
+
       - name: Build frontend static files
         env:
-          # Both are PUBLIC values (a URL and an OAuth client id) — safe as repo Variables.
-          VITE_API_URL: ${{ vars.VITE_API_URL }}
-          VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
+          # Both are PUBLIC values (a URL and an OAuth client id). Set them under
+          # Settings → Secrets and variables → Actions, on either the Variables or the Secrets tab.
+          VITE_API_URL: ${{ vars.VITE_API_URL || secrets.VITE_API_URL }}
+          VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID || secrets.VITE_GOOGLE_CLIENT_ID }}
         run: |
-          cd web
+          missing=0
+          if [ -z "$VITE_API_URL" ]; then echo "::error::VITE_API_URL is not set. Add it in Settings → Secrets and variables → Actions → Variables, then re-run."; missing=1; fi
+          if [ -z "$VITE_GOOGLE_CLIENT_ID" ]; then echo "::error::VITE_GOOGLE_CLIENT_ID is not set. Add it in Settings → Secrets and variables → Actions → Variables, then re-run."; missing=1; fi
+          [ "$missing" = 0 ] || exit 1
+          case "$VITE_API_URL" in */exec) ;; *) echo "::warning::VITE_API_URL should end in /exec (the Apps Script web-app URL).";; esac
+          case "$VITE_GOOGLE_CLIENT_ID" in *.apps.googleusercontent.com) ;; *) echo "::warning::VITE_GOOGLE_CLIENT_ID usually ends in .apps.googleusercontent.com — check for a typo or extra spaces.";; esac
+          echo "Client ID: ${VITE_GOOGLE_CLIENT_ID:0:12}…  API: ${VITE_API_URL:0:45}…"
+          cd "${{ steps.app.outputs.dir }}"
           npm install
           npm run build
 
@@ -45,7 +66,7 @@ jobs:
       - name: Upload build artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './web/dist'
+          path: ${{ steps.app.outputs.dir }}/dist
 
       - name: Deploy to GitHub Pages
         id: deployment
