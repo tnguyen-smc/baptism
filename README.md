@@ -73,7 +73,7 @@ Optional, for a more "git push" workflow: install [clasp](https://github.com/goo
 
 | Symptom | Fix |
 |---|---|
-| "The server sent a web page instead of data" | Deployment access isn't **Anyone**, or your Workspace admin blocks public web apps (Admin console → Apps Script settings.) |
+| "The server sent a web page instead of data" | Deployment access isn't **Anyone**, or your Workspace admin blocks public web apps (Admin console → Apps Script settings) |
 | "This sign-in was issued for a different app" | `GOOGLE_CLIENT_ID` in Config ≠ `VITE_GOOGLE_CLIENT_ID` in GitHub |
 | "…is not on the Staff list" | Add that exact email to the Staff tab |
 | Sign-in button missing | Authorized JavaScript origins in Cloud Console must include the site's origin |
