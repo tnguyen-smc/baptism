@@ -1,9 +1,9 @@
 import React from "react";
-import { LogOut, Link2 } from "lucide-react";
+import { LogOut, Link2, Settings } from "lucide-react";
 import logo from "../assets/St_Mary_Black.png";
 import { toast } from "../toast.js";
 
-export default function TopBar({ parish, me, formUrl, onHome, onSignOut }) {
+export default function TopBar({ parish, me, formUrl, onHome, onSettings, onSignOut }) {
   const copyForm = () => {
     if (!formUrl) return toast("No parent form yet — run setup() in Apps Script.", true);
     navigator.clipboard.writeText(formUrl).then(() => toast("Parent form link copied"), () => window.prompt("Copy this link:", formUrl));
@@ -20,6 +20,7 @@ export default function TopBar({ parish, me, formUrl, onHome, onSignOut }) {
       <div className="flex items-center gap-1">
         <span className="hidden md:inline text-[13px] muted mr-2">{me?.name} · {me?.role}</span>
         <button className="btn-link" onClick={copyForm}><Link2 size={16} /><span className="hidden sm:inline">Parent form link</span></button>
+        <button className="btn-link" onClick={onSettings}><Settings size={16} /><span className="hidden sm:inline">Settings</span></button>
         <button className="btn-link" onClick={onSignOut}><LogOut size={16} /><span>Log Out</span></button>
       </div>
     </div>

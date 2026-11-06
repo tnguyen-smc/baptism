@@ -6,7 +6,7 @@ import { fmtDate, fmtDateTime } from "../helpers.js";
 import { AsyncButton, Spinner, StatusPill } from "./Shared.jsx";
 import BaptismFormTab from "./BaptismFormTab.jsx";
 import ChecklistTab from "./ChecklistTab.jsx";
-import { ApprovalBaptismTab, RegistrarTab } from "./WorkflowTabs.jsx";
+import { ApprovalBaptismTab } from "./WorkflowTabs.jsx";
 import { DocumentsTab, ActivityTab } from "./DocumentsTab.jsx";
 import { ArchiveModal } from "./Modals.jsx";
 
@@ -18,14 +18,13 @@ const TABS = [
   ["form", "Baptism Form"],
   ["check", "Checklist"],
   ["approval", "Approval & Baptism"],
-  ["registrar", "Registrar"],
-  ["docs", "Documents"],
+  ["docs", "All Documents"],
   ["log", "Activity"],
 ];
 // Clicking a step in the strip jumps to the tab where that step is done.
-const STEP_TAB = ["form", "check", "approval", "approval", "approval", "registrar", "registrar"];
+const STEP_TAB = ["form", "check", "approval", "approval", "approval", "approval"];
 
-export default function RecordScreen({ id, boot, onBack, onChange }) {
+export default function RecordScreen({ id, boot, onBack, onChange, onOpenSettings }) {
   // Use the directory's copy only if it is a full record (older servers sent summaries only).
   const cached = boot.records.find((r) => r.progress && (r.id.toLowerCase() === id.toLowerCase() ||
     String(r.previousIds || "").toLowerCase().split(",").includes(id.toLowerCase())));
@@ -54,7 +53,8 @@ export default function RecordScreen({ id, boot, onBack, onChange }) {
   if (!rec) return <Spinner label="Opening record…" />;
 
   const st = rec.status;
-  const stepIdx = STEPS.findIndex(([s]) => s === st);
+  // Older records may say "Recorded in Register"; that counts as the last step.
+  const stepIdx = st === "Recorded in Register" ? STEPS.length : STEPS.findIndex(([s]) => s === st);
   const archived = rec.archived === "TRUE";
   const banner = nextStep(rec);
   const label = (k, t) => k === "check" ? `${t} ${rec.progress.done}/${rec.progress.total}` : k === "docs" && docs ? `${t} (${docs.length})` : t;
@@ -74,7 +74,8 @@ export default function RecordScreen({ id, boot, onBack, onChange }) {
         {archived && <AsyncButton onClick={async () => setRec(await api.unarchive(rec.id))}>Restore from archive</AsyncButton>}
       </div>
 
-      <div className="grid grid-cols-7 gap-1 mt-6">
+      <div className="eyebrow mt-6 !mb-2">Current Progress</div>
+      <div className="grid grid-cols-6 gap-1">
         {STEPS.map(([s, stepLabel], i) => (
           <button key={s} onClick={() => setTab(STEP_TAB[i])} className="pt-2 text-left text-[11px] sm:text-[12px] border-t-[3px] hover:opacity-80"
             style={{ borderColor: i < stepIdx ? "var(--done)" : i === stepIdx ? "var(--accent)" : "var(--line)",
@@ -98,7 +99,7 @@ export default function RecordScreen({ id, boot, onBack, onChange }) {
         ))}
       </div>
 
-      {rec.recordedAt && tab !== "registrar" && tab !== "log" && (
+      {rec.recordedAt && tab !== "log" && (
         <div className="rounded-xl px-4 py-3 mb-4 text-[13px]" style={{ background: "var(--warn-soft)", color: "var(--warn)" }}>
           Already entered in the register (Book {rec.regBook}, Page {rec.regPage}, No. {rec.regNumber}). Changes here don't update the physical book.
         </div>
@@ -106,8 +107,7 @@ export default function RecordScreen({ id, boot, onBack, onChange }) {
 
       {tab === "form" && <BaptismFormTab rec={rec} me={me} setRec={setRec} onPdfSaved={() => refreshDocs()} />}
       {tab === "check" && <ChecklistTab rec={rec} boot={boot} setRec={setRec} onUploaded={() => refreshDocs()} />}
-      {tab === "approval" && <ApprovalBaptismTab rec={rec} me={me} boot={boot} setRec={setRec} onCompleted={(r) => refreshDocs(r.id)} />}
-      {tab === "registrar" && <RegistrarTab rec={rec} setRec={setRec} />}
+      {tab === "approval" && <ApprovalBaptismTab rec={rec} me={me} boot={boot} setRec={setRec} onCompleted={(r) => refreshDocs(r.id)} onOpenSettings={onOpenSettings} />}
       {tab === "docs" && <DocumentsTab rec={rec} docs={docs} setRec={setRec} onUploaded={() => refreshDocs()} />}
       {tab === "log" && <ActivityTab rec={rec} />}
 
@@ -123,7 +123,7 @@ function nextStep(r) {
   const p = r.progress;
   if (r.archived === "TRUE") return { tone: "warn", text: `Archived: ${r.archivedReason}` };
   if (r.recordedAt) return { tone: "ok", text: `Entered in the register — Book ${r.regBook}, Page ${r.regPage}, No. ${r.regNumber}.` };
-  if (r.completedAt) return { text: `Baptized ${fmtDate(r.actualDate)} by ${r.minister}. Waiting for the Registrar to record it.`, tab: "registrar" };
+  if (r.completedAt) return { tone: "ok", text: `Baptized ${fmtDate(r.actualDate)} by ${r.minister}. Documents emailed to the Registrar.`, tab: "approval" };
   if (r.baptismAt) return { tone: "ok", text: `Baptism on ${fmtDateTime(r.baptismAt)}${r.baptismLocation ? ` at ${r.baptismLocation}` : ""}. Afterwards, mark it completed.`, tab: "approval" };
   if (r.approvedAt) return { text: `Approved by ${r.approvedBy}. Next: confirm the date with the family and schedule the baptism.`, tab: "approval" };
   if (p.total && p.done === p.total) return { text: `All ${p.total} items verified. Next: Pastor reviews and approves.`, tab: "approval" };

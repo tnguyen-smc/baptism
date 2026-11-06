@@ -1,11 +1,11 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { api } from "../api.js";
-import { nextWeekday10 } from "../helpers.js";
+import { upcomingSlots } from "../helpers.js";
 import { toast } from "../toast.js";
-import { Modal } from "./Shared.jsx";
+import { DateTime15, Modal } from "./Shared.jsx";
 
 const L = ({ label, children, wide }) => (
-  <label className={wide ? "sm:col-span-2" : ""}><span className="label">{label}</span>{children}</label>
+  <label className={wide ? "sm:col-span-2" : "block"}><span className="label">{label}</span>{children}</label>
 );
 
 export function ApproveModal({ rec, me, onDone, onClose }) {
@@ -23,18 +23,61 @@ export function ApproveModal({ rec, me, onDone, onClose }) {
   );
 }
 
-export function BaptismModal({ rec, boot, onDone, onClose }) {
+/**
+ * Pick one of the parish's regular baptism times (Settings), or — rarely — any other date and time.
+ */
+export function BaptismModal({ rec, boot, onDone, onClose, onOpenSettings }) {
   const d = boot.defaults;
-  const [start, setStart] = useState((rec.baptismAt || (rec.proposedDate ? `${rec.proposedDate.slice(0, 10)}T11:00` : nextWeekday10())).slice(0, 16));
+  const slots = useMemo(() => upcomingSlots(boot.baptismTimes || []), [boot.baptismTimes]);
+  const current = (rec.baptismAt || "").slice(0, 16);
+  const preferred = (rec.proposedDate || "").slice(0, 10);
+  const firstOnPreferred = slots.find((s) => s.value.startsWith(preferred))?.value;
+
+  const [mode, setMode] = useState(!slots.length || (current && !slots.some((s) => s.value === current)) ? "other" : "slot");
+  const [slot, setSlot] = useState(slots.some((s) => s.value === current) ? current : firstOnPreferred || "");
+  const [other, setOther] = useState(current);
   const [minutes, setMinutes] = useState(d.baptismMinutes);
   const [loc, setLoc] = useState(rec.baptismLocation || d.baptismLocation);
   const [celebrant, setCelebrant] = useState(rec.celebrant || boot.pastors[0] || "");
   const [invite, setInvite] = useState(!!rec.contactEmail);
+  const start = mode === "slot" ? slot : other;
+
   return (
     <Modal title="Schedule the baptism" okText="Save to Google Calendar" okClass="btn btn-dark" onClose={onClose}
-      onOk={async () => { onDone(await api.scheduleBaptism(rec.id, start, minutes, loc, celebrant, invite)); toast("Baptism on the calendar"); }}>
+      onOk={async () => {
+        if (!start) throw new Error(mode === "slot" ? "Choose a baptism time." : "Choose a date and time.");
+        onDone(await api.scheduleBaptism(rec.id, start, minutes, loc, celebrant, invite)); toast("Baptism on the calendar");
+      }}>
       <div className="grid sm:grid-cols-2 gap-4">
-        <L label="Date & time" wide><input className="input" type="datetime-local" value={start} onChange={(e) => setStart(e.target.value)} /></L>
+        <div className="sm:col-span-2">
+          {mode === "slot" ? (
+            <>
+              <span className="label">Baptism time</span>
+              <select className="input" value={slot} onChange={(e) => setSlot(e.target.value)}>
+                <option value="">Choose a date…</option>
+                {slots.map((s) => (
+                  <option key={s.value} value={s.value}>{s.label}{preferred && s.value.startsWith(preferred) ? "  ★ preferred" : ""}</option>
+                ))}
+              </select>
+              <button type="button" className="text-[13px] mt-2 underline accent" onClick={() => { setMode("other"); if (!other) setOther(slot); }}>
+                Use a different date or time
+              </button>
+            </>
+          ) : (
+            <>
+              <span className="label">Date &amp; time (outside the regular baptism times)</span>
+              <DateTime15 value={other} onChange={setOther} />
+              {slots.length > 0 ? (
+                <button type="button" className="text-[13px] mt-2 underline accent" onClick={() => setMode("slot")}>Back to regular baptism times</button>
+              ) : (
+                <p className="text-[13px] muted mt-2">
+                  No regular baptism times are set yet.{" "}
+                  {onOpenSettings && <button type="button" className="underline accent" onClick={onOpenSettings}>Add them in Settings</button>}
+                </p>
+              )}
+            </>
+          )}
+        </div>
         <L label="Minutes"><input className="input" type="number" value={minutes} onChange={(e) => setMinutes(e.target.value)} /></L>
         <L label="Location"><input className="input" value={loc} onChange={(e) => setLoc(e.target.value)} /></L>
         <L label="Celebrant" wide>

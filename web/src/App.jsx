@@ -7,6 +7,7 @@ import LoginScreen from "./components/LoginScreen.jsx";
 import TopBar from "./components/TopBar.jsx";
 import DirectoryScreen from "./components/DirectoryScreen.jsx";
 import RecordScreen from "./components/RecordScreen.jsx";
+import SettingsScreen from "./components/SettingsScreen.jsx";
 import { Spinner, Toasts } from "./components/Shared.jsx";
 
 /**
@@ -92,10 +93,12 @@ export default function App() {
           Showing saved data — couldn’t refresh: {error} <button className="underline ml-1" onClick={load}>Try again</button>
         </div>
       )}
-      <TopBar parish={boot.parish} me={boot.me} formUrl={boot.formUrl} onHome={() => go("/")} onSignOut={logOut} />
+      <TopBar parish={boot.parish} me={boot.me} formUrl={boot.formUrl} onHome={() => go("/")} onSettings={() => go("/settings")} onSignOut={logOut} />
       <main className="max-w-6xl mx-auto px-5 sm:px-8 py-8 pb-24">
         {route.name === "record"
-          ? <RecordScreen key={route.id} id={route.id} boot={boot} onBack={() => go("/")} onChange={upsertRecord} />
+          ? <RecordScreen key={route.id} id={route.id} boot={boot} onBack={() => go("/")} onChange={upsertRecord} onOpenSettings={() => go("/settings")} />
+          : route.name === "settings"
+          ? <SettingsScreen boot={boot} onBack={() => go("/")} onSaved={(patch) => setBoot((b) => ({ ...b, ...patch }))} />
           : <DirectoryScreen boot={boot} summaries={summaries} go={go} onRefresh={load} refreshing={refreshing} />}
       </main>
       <Toasts />

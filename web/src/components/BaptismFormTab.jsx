@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { FileText, Save, CalendarCheck, X } from "lucide-react";
 import { api } from "../api.js";
-import { fmtDate, fmtDateTime, nextWeekday10 } from "../helpers.js";
+import { fmtDate, fmtDateTime } from "../helpers.js";
 import { toast } from "../toast.js";
-import { AsyncButton, Field } from "./Shared.jsx";
+import { AsyncButton, DateTime15, Field } from "./Shared.jsx";
 
 // Laid out in the same order as the paper parish Baptism Form.
 // [key, label, type, options, wide]
@@ -35,11 +35,14 @@ const KEYS = SECTIONS.flatMap(([, fs]) => fs.map((f) => f[0]));
 export default function BaptismFormTab({ rec, me, setRec, onPdfSaved }) {
   const pick = (r) => Object.fromEntries(KEYS.map((k) => [k, r[k] || ""]));
   const [form, setForm] = useState(() => pick(rec));
-  useEffect(() => setForm(pick(rec)), [rec.updatedAt]);
+  const [base, setBase] = useState(() => pick(rec));          // values the form started from
+  useEffect(() => { setForm(pick(rec)); setBase(pick(rec)); }, [rec.updatedAt]);
+  // Only fields this person changed are sent, so an older copy on screen never overwrites someone else's edit.
+  const changed = () => Object.fromEntries(KEYS.filter((k) => (form[k] || "") !== (base[k] || "")).map((k) => [k, form[k]]));
   const readOnly = false; // every staff member may edit every section
-  const dirty = KEYS.some((k) => (form[k] || "") !== (rec[k] || ""));
+  const dirty = KEYS.some((k) => (form[k] || "") !== (base[k] || ""));
 
-  const save = async () => { const r = await api.saveForm(rec.id, form); setRec(r); return r; };
+  const save = async () => { const r = await api.saveForm(rec.id, changed()); setRec(r); return r; };
 
   const input = ([k, label, type = "text", opts, wide]) => {
     const common = { className: "input", value: type === "date" ? String(form[k]).slice(0, 10) : form[k], disabled: readOnly,
@@ -78,7 +81,7 @@ export default function BaptismFormTab({ rec, me, setRec, onPdfSaved }) {
           if (tab) tab.location = url; else window.open(url, "_blank");
           if (readOnly) return;
           // …then save the fields and the PDF to Drive in ONE request.
-          setRec(await api.saveFormWithPdf(rec.id, form, b64));
+          setRec(await api.saveFormWithPdf(rec.id, changed(), b64));
           onPdfSaved?.();
           toast("Form and PDF saved to Drive");
         }}>
@@ -120,7 +123,7 @@ function InterviewNote({ rec, setRec }) {
           </>
         ) : (
           <>
-            <input className="input !w-auto" type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} onFocus={() => !when && setWhen(nextWeekday10())} />
+            <DateTime15 value={when} onChange={setWhen} />
             <AsyncButton className="btn btn-primary" onClick={async () => {
               if (!when) throw new Error("Pick the interview date and time.");
               setRec(await api.setInterview(rec.id, when)); toast("Interview marked as scheduled");

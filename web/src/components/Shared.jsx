@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { STATUS_COLORS, muted } from "../theme.js";
 import { subscribeToasts, toast } from "../toast.js";
+import { timeOptions } from "../helpers.js";
 
 export function StatusPill({ status }) {
   const c = STATUS_COLORS[status] || muted;
@@ -89,6 +90,28 @@ export function Toasts() {
           {t.text}
         </div>
       ))}
+    </div>
+  );
+}
+
+/**
+ * Date + time picker with times in 15-minute steps.
+ * value / onChange use "YYYY-MM-DDTHH:MM" ("" until both parts are chosen).
+ */
+export function DateTime15({ value, onChange, fromHour = 6, toHour = 21 }) {
+  const [date, setDate] = useState((value || "").slice(0, 10));
+  const [time, setTime] = useState((value || "").slice(11, 16));
+  useEffect(() => { setDate((value || "").slice(0, 10)); setTime((value || "").slice(11, 16)); }, [value]);
+  const opts = timeOptions(fromHour, toHour);
+  if (time && !opts.some((o) => o.value === time)) opts.unshift({ value: time, label: time }); // keep an older off-grid time visible
+  const emit = (d, t) => onChange(d && t ? `${d}T${t}` : "");
+  return (
+    <div className="flex gap-2 flex-wrap">
+      <input className="input !w-auto" type="date" value={date} onChange={(e) => { setDate(e.target.value); emit(e.target.value, time); }} />
+      <select className="input !w-auto" value={time} onChange={(e) => { setTime(e.target.value); emit(date, e.target.value); }}>
+        <option value="">Time…</option>
+        {opts.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
     </div>
   );
 }

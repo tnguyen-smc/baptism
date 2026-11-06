@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { CalendarPlus, CheckCircle2, Send, BookOpen, Undo2 } from "lucide-react";
+import { CalendarPlus, CheckCircle2, Mail, Undo2 } from "lucide-react";
 import { api } from "../api.js";
 import { fmtDate, fmtDateTime } from "../helpers.js";
 import { toast } from "../toast.js";
@@ -19,16 +19,51 @@ function Step({ n, title, done, children }) {
   );
 }
 
+/**
+ * Opens a new Gmail message (in the signed-in account) to the Registrar, cc the Pastor(s),
+ * with links to the filled Baptism Form and the child's Drive folder. Gmail drafts cannot carry
+ * attachments from a link, so the PDF is linked rather than attached.
+ */
+function gmailComposeUrl({ me, to, cc, rec, date, minister }) {
+  const join = (...xs) => xs.filter(Boolean).join(" & ");
+  const subject = `Completed Baptism Documents for ${rec.childName}`;
+  const body = [
+    "Dear Registrar,",
+    "",
+    `The baptism of ${rec.childName} was celebrated on ${fmtDate(date)} by ${minister}. Please enter it in the Baptismal Register.`,
+    "",
+    rec.formPdfUrl && `Baptism Form (PDF): ${rec.formPdfUrl}`,
+    rec.folderUrl && `All documents: ${rec.folderUrl}`,
+    "",
+    `Child: ${rec.childName}`,
+    `Date of birth: ${fmtDate(rec.childDob)}${rec.birthCity ? ` · ${[rec.birthCity, rec.birthState].filter(Boolean).join(", ")}` : ""}`,
+    `Parents: ${join(rec.fatherName, rec.motherName) || "—"}`,
+    `Godparents: ${join(rec.gp1Name, rec.gp2Name) || "—"}`,
+    rec.homeBaptized === "Yes" && "Note: the child was already baptized at home (emergency).",
+    rec.adopted === "Yes" && "Note: the child is adopted.",
+    "",
+    "Thank you,",
+    me.name,
+  ].filter((x) => x !== false && x !== undefined && x !== null).join("\n");
+  const q = [
+    ["view", "cm"], ["fs", "1"], ["to", to], ["cc", cc.filter((e) => e && e !== to).join(",")],
+    ["su", subject], ["body", body], ["authuser", me.email],
+  ].map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join("&");
+  return `https://mail.google.com/mail/?${q}`;
+}
+
 /** Steps 4–5: approval, baptism date, completion. Always visible and editable. */
-export function ApprovalBaptismTab({ rec, me, boot, setRec, onCompleted }) {
+export function ApprovalBaptismTab({ rec, me, boot, setRec, onCompleted, onOpenSettings }) {
   const [modal, setModal] = useState(null);
   const [date, setDate] = useState((rec.actualDate || rec.baptismAt || "").slice(0, 10));
   const [minister, setMinister] = useState(rec.minister || rec.celebrant || "");
+  const [registrar, setRegistrar] = useState(boot.registrarEmail || "");
   useEffect(() => {
     setDate((rec.actualDate || rec.baptismAt || "").slice(0, 10));
     setMinister(rec.minister || rec.celebrant || "");
   }, [rec.updatedAt]);
   const p = rec.progress;
+  const unchanged = rec.completedAt && date === (rec.actualDate || "").slice(0, 10) && minister === rec.minister;
 
   return (
     <>
@@ -61,68 +96,48 @@ export function ApprovalBaptismTab({ rec, me, boot, setRec, onCompleted }) {
           </span>
           <button className="btn btn-dark" onClick={() => setModal("baptism")}><CalendarPlus size={16} /> {rec.baptismAt ? "Reschedule" : "Schedule baptism"}</button>
         </div>
-        <p className="text-[13px] muted mt-2">Creates or moves the Google Calendar event.</p>
+        <p className="text-[13px] muted mt-2">Choose from the parish's regular baptism times (set in Settings), or another time if needed. Creates or moves the Google Calendar event.</p>
       </Step>
 
       <Step n="3" title="Baptism celebrated" done={!!rec.completedAt}>
-        <div className="grid sm:grid-cols-[1fr_1.4fr_auto] gap-4 items-end">
-          <label><span className="label">Actual date of baptism</span><input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
-          <label><span className="label">Name of minister</span>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <label className="block"><span className="label">Actual date of baptism</span><input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
+          <label className="block"><span className="label">Name of minister</span>
             <input className="input" list="minister-list" value={minister} onChange={(e) => setMinister(e.target.value)} />
             <datalist id="minister-list">{boot.pastors.map((n) => <option key={n} value={n} />)}</datalist>
           </label>
+          <label className="block sm:col-span-2"><span className="label">Registrar email</span>
+            <input className="input" type="email" value={registrar} placeholder="registrar@…" onChange={(e) => setRegistrar(e.target.value)} />
+          </label>
+        </div>
+        <div className="flex items-center gap-3 flex-wrap mt-4">
           <AsyncButton className="btn btn-primary" onClick={async () => {
             if (!date || !minister) throw new Error("Date and minister are required.");
-            const { buildBaptismPdf } = await import("../fillBaptismForm.js");
-            const pdf = await buildBaptismPdf({ ...rec, actualDate: date, minister });
-            const r = await api.completeBaptism(rec.id, date, minister, pdf);
-            setRec(r); onCompleted?.(r);
-            toast("Sent to the Registrar");
-          }}><Send size={16} /> {rec.completedAt ? "Update & re-send" : "Complete & send to Registrar"}</AsyncButton>
+            if (!/^\S+@\S+\.\S+$/.test(registrar)) throw new Error("Enter the Registrar's email address.");
+            const tab = window.open("", "_blank");             // open now so the pop-up blocker allows it
+            try {
+              let r = rec;
+              if (!unchanged) {
+                const { buildBaptismPdf } = await import("../fillBaptismForm.js");
+                const pdf = await buildBaptismPdf({ ...rec, actualDate: date, minister });
+                r = await api.completeBaptism(rec.id, date, minister, pdf);   // saves date, minister and final PDF to Drive
+                setRec(r); onCompleted?.(r);
+              }
+              const url = gmailComposeUrl({ me, to: registrar, cc: boot.pastorEmails || [], rec: r, date, minister });
+              if (tab) tab.location = url; else window.open(url, "_blank");
+              toast("Gmail opened — review and click Send");
+            } catch (e) { tab?.close(); throw e; }
+          }}><Mail size={16} /> {unchanged ? "Open Registrar email again" : "Complete & email Registrar"}</AsyncButton>
         </div>
         <p className="text-[13px] muted mt-3">
-          {rec.completedAt
-            ? `Sent to the Registrar on ${fmtDate(rec.registrarSentAt || rec.completedAt)} with the filled Baptism Form attached.`
-            : "Fills in the Baptism Form PDF and emails it, with a register summary, to the Sacrament Registrar."}
+          Saves the final Baptism Form PDF to Drive, then opens a new Gmail message to the Registrar (cc the Pastor) with the subject
+          “Completed Baptism Documents for {rec.childName}” and links to the form and all documents.
+          {rec.completedAt && ` Completed ${fmtDate(rec.completedAt)}.`}
         </p>
       </Step>
 
       {modal === "approve" && <ApproveModal rec={rec} me={me} onDone={setRec} onClose={() => setModal(null)} />}
-      {modal === "baptism" && <BaptismModal rec={rec} boot={boot} onDone={setRec} onClose={() => setModal(null)} />}
-    </>
-  );
-}
-
-/** Step 6: the Registrar's entry in the physical register. Always visible and editable. */
-export function RegistrarTab({ rec, setRec }) {
-  const [b, setB] = useState(rec.regBook);
-  const [pg, setPg] = useState(rec.regPage);
-  const [n, setN] = useState(rec.regNumber);
-  useEffect(() => { setB(rec.regBook); setPg(rec.regPage); setN(rec.regNumber); }, [rec.updatedAt]);
-  return (
-    <>
-      <Step n="1" title="Packet to the Registrar" done={!!rec.registrarSentAt}>
-        <div className="flex items-center gap-3 flex-wrap">
-          <span className="text-[15px] flex-1">
-            {rec.registrarSentAt ? `Emailed on ${fmtDate(rec.registrarSentAt)}.` : "Not sent yet — it goes automatically when the baptism is marked celebrated."}
-          </span>
-          <AsyncButton className="btn" onClick={async () => { setRec(await api.resendRegistrar(rec.id)); toast("Sent to the Registrar"); }}>
-            <Send size={16} /> {rec.registrarSentAt ? "Resend" : "Send now"}
-          </AsyncButton>
-        </div>
-      </Step>
-      <Step n="2" title="Entered in the Baptismal Register" done={!!rec.recordedAt}>
-        <div className="grid grid-cols-3 sm:grid-cols-[1fr_1fr_1fr_auto] gap-4 items-end">
-          <label><span className="label">Book</span><input className="input" value={b} onChange={(e) => setB(e.target.value)} /></label>
-          <label><span className="label">Page</span><input className="input" value={pg} onChange={(e) => setPg(e.target.value)} /></label>
-          <label><span className="label">Entry no.</span><input className="input" value={n} onChange={(e) => setN(e.target.value)} /></label>
-          <AsyncButton className="btn btn-primary col-span-3 sm:col-span-1" onClick={async () => {
-            if (!b || !pg || !n) throw new Error("Book, page and entry number are all required.");
-            setRec(await api.recordInRegister(rec.id, b, pg, n)); toast("Saved");
-          }}><BookOpen size={16} /> {rec.recordedAt ? "Update" : "Mark recorded"}</AsyncButton>
-        </div>
-        {rec.recordedAt && <p className="text-[13px] muted mt-3">Recorded by {rec.recordedBy} on {fmtDate(rec.recordedAt)}.</p>}
-      </Step>
+      {modal === "baptism" && <BaptismModal rec={rec} boot={boot} onDone={setRec} onClose={() => setModal(null)} onOpenSettings={onOpenSettings} />}
     </>
   );
 }

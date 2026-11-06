@@ -24,6 +24,5 @@ export const STEPS = [
   ["Awaiting Pastor Approval", "Pastor approval"],
   ["Approved — Schedule Baptism", "Approved"],
   ["Baptism Scheduled", "Baptism scheduled"],
-  ["Sent to Registrar", "Registrar"],
-  ["Recorded in Register", "Recorded"],
+  ["Sent to Registrar", "Completed"],
 ];

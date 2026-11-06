@@ -52,4 +52,5 @@ export const api = {
   recordInRegister: (id, book, page, number) => call("recordInRegister", id, book, page, number),
   archive: (id, reason) => call("archive", id, reason),
   unarchive: (id) => call("unarchive", id),
+  saveSettings: (settings) => call("saveSettings", settings),
 };

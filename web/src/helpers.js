@@ -48,3 +48,44 @@ export function fileToBase64(file) {
     fr.readAsDataURL(file);
   });
 }
+
+export const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+/** "17:30" → "5:30 PM" */
+export function fmtTime(hhmm) {
+  const [h, m] = String(hhmm || "").split(":").map(Number);
+  if (isNaN(h)) return "";
+  return `${((h + 11) % 12) + 1}:${String(m || 0).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
+}
+
+/** Times every 15 minutes between two hours, for <select> lists. */
+export function timeOptions(fromHour = 6, toHour = 21) {
+  const out = [];
+  for (let h = fromHour; h <= toHour; h++) {
+    for (const m of [0, 15, 30, 45]) {
+      const v = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+      out.push({ value: v, label: fmtTime(v) });
+    }
+  }
+  return out;
+}
+
+/**
+ * Turns the weekly baptism times from Settings into real upcoming dates.
+ * times: [{day: 0-6, time: "HH:MM", label}] → [{value: "2026-12-05T10:00", label: "Sat, Dec 5, 2026 · 10:00 AM — …"}]
+ */
+export function upcomingSlots(times, weeks = 16) {
+  if (!times?.length) return [];
+  const out = [];
+  const now = new Date();
+  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  for (let i = 0; i < weeks * 7; i++, d.setDate(d.getDate() + 1)) {
+    for (const t of times.filter((x) => Number(x.day) === d.getDay())) {
+      const value = `${localInput(d).slice(0, 10)}T${t.time}`;
+      if (new Date(value) <= now) continue;
+      const day = d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+      out.push({ value, label: `${day} · ${fmtTime(t.time)}${t.label ? ` — ${t.label}` : ""}` });
+    }
+  }
+  return out.sort((a, b) => (a.value < b.value ? -1 : 1));
+}
