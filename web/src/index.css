@@ -4,23 +4,44 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Baptism Prep palette: baptismal-water blue, so it is easy to tell apart from Marriage Prep (bronze).
+   Change colours here only; every component reads these variables. */
+:root {
+  --accent: #2F6690;       /* primary buttons, links, active tab */
+  --accent-strong: #24547A;
+  --accent-soft: #E3EEF7;  /* banners, soft buttons */
+  --ink: #1F2D3A;          /* text, dark buttons */
+  --page: #F2F5F8;         /* page background */
+  --surface: #F8FAFC;      /* top bar, dialogs */
+  --line: #D9E2EA;         /* borders */
+  --muted: #6B7785;
+  --muted-strong: #4F5B68;
+  --faint: #A3AEBA;
+  --done: #3A7D7C;         /* completed steps, progress bars */
+  --done-soft: #E1F0EF;
+  --warn: #9B2C2C;
+  --warn-soft: #F8E4E4;
+}
+
 html, body, #root { height: 100%; }
-body { background: #F5F2EB; color: #2B3A42; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; }
+body { background: var(--page); color: var(--ink); font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; }
 
 @layer components {
   .serif { font-family: 'Source Serif 4', Georgia, serif; }
-  .btn { @apply inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-[14px] border transition-colors disabled:opacity-45 disabled:cursor-not-allowed; border-color: #E4DDD0; background: #fff; }
-  .btn:hover:not(:disabled) { border-color: #A8763E; }
-  .btn-primary { background: #A8763E; border-color: #A8763E; color: #fff; }
-  .btn-dark { background: #2B3A42; border-color: #2B3A42; color: #fff; }
-  .btn-soft { background: #F3E7D6; border-color: #F3E7D6; color: #A8763E; }
-  .btn-link { @apply inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[14px]; color: #6E675C; }
+  .btn { @apply inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-[14px] border transition-colors disabled:opacity-45 disabled:cursor-not-allowed; border-color: var(--line); background: #fff; }
+  .btn:hover:not(:disabled) { border-color: var(--accent); }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover:not(:disabled) { background: var(--accent-strong); border-color: var(--accent-strong); }
+  .btn-dark { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .btn-soft { background: var(--accent-soft); border-color: var(--accent-soft); color: var(--accent); }
+  .btn-link { @apply inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[14px]; color: var(--muted-strong); }
   .btn-link:hover { background: rgba(0,0,0,.04); }
-  .input { @apply w-full rounded-lg px-3 py-2.5 text-[15px] outline-none; background: #fff; border: 1px solid #E4DDD0; color: #2B3A42; }
-  .input:focus { border-color: #A8763E; }
-  .input:disabled { background: #FAF7F0; color: #6E675C; }
-  .panel { @apply rounded-xl border p-5 sm:p-6; background: #fff; border-color: #E4DDD0; }
-  .label { @apply block text-[12px] mb-1.5 tracking-wide; color: #8A8378; }
-  .eyebrow { @apply text-[12px] uppercase tracking-[0.08em] mb-3; color: #8A8378; }
-  .muted { color: #8A8378; }
+  .input { @apply w-full rounded-lg px-3 py-2.5 text-[15px] outline-none; background: #fff; border: 1px solid var(--line); color: var(--ink); }
+  .input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .input:disabled { background: var(--surface); color: var(--muted-strong); }
+  .panel { @apply rounded-xl border p-5 sm:p-6; background: #fff; border-color: var(--line); }
+  .label { @apply block text-[12px] mb-1.5 tracking-wide; color: var(--muted); }
+  .eyebrow { @apply text-[12px] uppercase tracking-[0.08em] mb-3; color: var(--muted); }
+  .muted { color: var(--muted); }
+  .accent { color: var(--accent); }
 }

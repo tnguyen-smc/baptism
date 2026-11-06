@@ -1,19 +1,19 @@
-export const ink = "#2B3A42";
-export const parchment = "#FAF7F0";
-export const line = "#E4DDD0";
-export const muted = "#8A8378";
-export const sage = "#6B7F73";
-export const bronze = "#A8763E";
-export const brick = "#8B3A3A";
+// Hex values for places that need a literal colour (status dots). Keep in step with :root in index.css.
+export const accent = "#2F6690";
+export const ink = "#1F2D3A";
+export const muted = "#6B7785";
+export const done = "#3A7D7C";
+export const warn = "#9B2C2C";
+export const attention = "#B45309";
 
 /** Status → pill colour. Statuses are computed by the backend (Code.gs → evaluate_). */
 export const STATUS_COLORS = {
-  "New Inquiry": bronze,
-  "Verifying Documents": bronze,
-  "Awaiting Pastor Approval": brick,
-  "Approved — Schedule Baptism": brick,
-  "Baptism Scheduled": sage,
-  "Sent to Registrar": sage,
+  "New Inquiry": accent,
+  "Verifying Documents": accent,
+  "Awaiting Pastor Approval": attention,
+  "Approved — Schedule Baptism": attention,
+  "Baptism Scheduled": done,
+  "Sent to Registrar": done,
   "Recorded in Register": muted,
   Archived: muted,
 };

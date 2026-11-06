@@ -10,6 +10,19 @@ const ACTUAL_DATE_BOXES = [{ x: 175.2, y: 114.4 }, { x: 246.0, y: 114.4 }, { x: 
 const TEMPLATE_URL = `${import.meta.env.BASE_URL}Baptism_Form_Template.pdf`;
 let templateCache = null;
 
+/** Warm up: download the blank form in the background as soon as a record opens. */
+export async function preloadTemplate() {
+  if (templateCache) return;
+  const res = await fetch(TEMPLATE_URL);
+  if (res.ok) templateCache = await res.arrayBuffer();
+}
+
+/** Turns the base64 PDF into a browser link the user can open instantly. */
+export function pdfBlobUrl(b64) {
+  const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+  return URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+}
+
 /** The original parish PDF lists orphaned copies of its fields; rebuild the list from page 1's widgets. */
 function repairFields(doc) {
   const annots = doc.getPage(0).node.Annots();

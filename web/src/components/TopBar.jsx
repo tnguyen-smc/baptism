@@ -9,7 +9,7 @@ export default function TopBar({ parish, me, formUrl, onHome, onSignOut }) {
     navigator.clipboard.writeText(formUrl).then(() => toast("Parent form link copied"), () => window.prompt("Copy this link:", formUrl));
   };
   return (
-    <div className="flex items-center justify-between px-5 sm:px-8 py-4 border-b" style={{ borderColor: "#E4DDD0", background: "#FAF7F0" }}>
+    <div className="flex items-center justify-between px-5 sm:px-8 py-4 border-b" style={{ borderColor: "var(--line)", background: "var(--surface)" }}>
       <button onClick={onHome} className="flex items-center gap-3 text-left">
         <img src={logo} alt="" className="w-9 h-9 object-contain" />
         <div>

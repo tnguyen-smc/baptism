@@ -20,8 +20,8 @@ export function Spinner({ label }) {
 export function ProgressBar({ done, total, height = 6 }) {
   const pct = total ? Math.round((100 * done) / total) : 0;
   return (
-    <div className="rounded-full overflow-hidden" style={{ height, background: "#E4DDD0" }}>
-      <div className="h-full transition-all" style={{ width: `${pct}%`, background: "#6B7F73" }} />
+    <div className="rounded-full overflow-hidden" style={{ height, background: "var(--line)" }}>
+      <div className="h-full transition-all" style={{ width: `${pct}%`, background: "var(--done)" }} />
     </div>
   );
 }
@@ -61,7 +61,7 @@ export function Modal({ title, children, okText = "Save", okClass = "btn btn-pri
   }, [onClose]);
   return (
     <div className="fixed inset-0 z-30 flex items-center justify-center p-4" style={{ background: "rgba(43,58,66,.35)" }} onMouseDown={onClose}>
-      <div className="w-full max-w-lg max-h-[90vh] overflow-auto rounded-2xl p-6" style={{ background: "#FAF7F0" }} onMouseDown={(e) => e.stopPropagation()}>
+      <div className="w-full max-w-lg max-h-[90vh] overflow-auto rounded-2xl p-6" style={{ background: "var(--surface)" }} onMouseDown={(e) => e.stopPropagation()}>
         <div className="flex items-start mb-4">
           <h3 className="serif text-[22px] flex-1">{title}</h3>
           <button className="btn-link" onClick={onClose} aria-label="Close"><X size={18} /></button>
@@ -85,7 +85,7 @@ export function Toasts() {
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex flex-col gap-2 items-center">
       {items.map((t) => (
-        <div key={t.id} className="px-4 py-2.5 rounded-lg text-[14px] text-white shadow-lg max-w-[90vw]" style={{ background: t.isError ? "#8B3A3A" : "#2B3A42" }}>
+        <div key={t.id} className="px-4 py-2.5 rounded-lg text-[14px] text-white shadow-lg max-w-[90vw]" style={{ background: t.isError ? "var(--warn)" : "var(--ink)" }}>
           {t.text}
         </div>
       ))}

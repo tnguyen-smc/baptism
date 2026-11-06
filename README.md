@@ -1,7 +1,7 @@
 # Baptism Preparation — St. Mary Catholic Church
 
 React app on **GitHub Pages** + **Google Apps Script** backend over a Google Sheet.
-Same look and repo layout as Marriage Prep, but with no Render server, no client secret, and nothing that sleeps.
+Same layout as Marriage Prep, in a blue theme to tell them apart, but with no Render server, no client secret, and nothing that sleeps.
 
 ```
 GitHub Pages (React, web/)  ──POST {action, args, idToken}──▶  Apps Script /exec (apps-script/Code.gs)
@@ -23,7 +23,7 @@ GitHub Pages (React, web/)  ──POST {action, args, idToken}──▶  Apps Sc
 4. Staff tab: one row per person — `email | name | role | notify`. Roles: `Secretary`, `Pastor`, `Registrar`, `Admin`.
 5. Config → `GOOGLE_CLIENT_ID`: the OAuth **Web** client id (the Marriage Prep one works — Cloud Console → Credentials). Add `http://localhost:5173` to its Authorized JavaScript origins for local dev; `https://tnguyen-smc.github.io` is already there.
 6. Config → `APP_URL`: `https://tnguyen-smc.github.io/baptism` (email buttons link here).
-7. Optional: Config → `ALLOWED_DOMAIN` (e.g. `stmarygc.org`) so only parish Google accounts can sign in.
+7. Optional: Config → `ALLOWED_DOMAIN` (e.g. `stmarygc.com`) so only parish Google accounts can sign in.
 8. **Deploy → New deployment → Web app** · Execute as **Me** · Who has access **Anyone**. Copy the URL ending in `/exec`. Opening it in a browser should show `{"ok":true,...}`.
 
 > "Anyone" is required so GitHub Pages can reach it. It is still locked down: each request must carry a Google sign-in token issued for *your* client id, for an email on the Staff tab. Deploy from a shared office account, not a person's login.
@@ -51,6 +51,18 @@ npm run dev                  # http://localhost:5173/baptism/
 
 The local app talks to the real Apps Script backend. Use a test Sheet + separate deployment if you want to experiment safely.
 
+## Record IDs and links
+
+Each record's ID, Drive folder and link use the child's **Last-First-MM-DD-YYYY** (date of birth), e.g.
+`https://tnguyen-smc.github.io/baptism/records/Santana-Chairez-Mateo-03-15-2026`.
+Accents are dropped, spaces become hyphens, and a twin or duplicate gets `-2`.
+If staff correct the name or birth date, the ID, link and folder update automatically; the old ID is kept in
+`previousIds`, so links in earlier emails and calendar events still open the record.
+
+**Upgrading from the earlier version?** Paste the new `Code.gs`, run **`migrateIds`** once from the editor
+(it renames existing records and folders, and adds birth-certificate help text to the parent form),
+then publish a new version of the deployment.
+
 ## Updating the backend
 
 Edit `apps-script/Code.gs` in the repo, paste it into the Apps Script editor, then **Deploy → Manage deployments → ✏️ → Version: New version**. Editing the existing deployment keeps the same `/exec` URL, so nothing in GitHub changes.
@@ -66,7 +78,7 @@ Optional, for a more "git push" workflow: install [clasp](https://github.com/goo
 | Change which PDF box gets what | `web/src/fillBaptismForm.js` |
 | Parish revises the paper form | Replace `web/public/Baptism_Form_Template.pdf` and push; update field names in `fillBaptismForm.js` only if they changed |
 | Change email wording | `send*_` functions in Code.gs |
-| Colours / fonts | `web/src/theme.js`, `web/src/index.css` |
+| Colours | The `:root` variables at the top of `web/src/index.css` (status-dot colours in `web/src/theme.js`) |
 | Defaults (durations, locations) | Config tab in the Sheet — no redeploy |
 
 ## Troubleshooting

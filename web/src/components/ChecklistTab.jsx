@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { Upload } from "lucide-react";
 import { api } from "../api.js";
-import { can, fileToBase64, fmtDate } from "../helpers.js";
+import { fileToBase64, fmtDate } from "../helpers.js";
 import { toast } from "../toast.js";
 import { ProgressBar } from "./Shared.jsx";
 
-const STATES = [["verified", "Verified", "#6B7F73"], ["waived", "Waived", "#A8763E"], ["", "Missing", "#2B3A42"]];
+const STATES = [["verified", "Verified", "var(--done)"], ["waived", "Waived", "var(--accent)"], ["", "Missing", "var(--ink)"]];
 
-export default function ChecklistTab({ rec, me, boot, setRec }) {
-  const readOnly = !!rec.recordedAt || !can(me, ["Secretary", "Pastor"]);
+export default function ChecklistTab({ rec, boot, setRec, onUploaded }) {
+  const readOnly = false; // every staff member may verify items
   const items = boot.checklist.filter((c) => rec.progress.keys.includes(c.key));
   const groups = [...new Set(items.map((c) => c.group))];
   const gpLabel = (n) => {
@@ -21,16 +21,16 @@ export default function ChecklistTab({ rec, me, boot, setRec }) {
     <>
       <div className="mb-5"><ProgressBar done={rec.progress.done} total={rec.progress.total} height={8} /></div>
       {!rec.gp1Name && !rec.gp2Name && (
-        <div className="rounded-xl px-4 py-3 mb-5 text-[14px]" style={{ background: "#F5E3E3", color: "#8B3A3A" }}>
+        <div className="rounded-xl px-4 py-3 mb-5 text-[14px]" style={{ background: "var(--warn-soft)", color: "var(--warn)" }}>
           No godparent recorded yet. Add at least one on the Baptism Form tab.
         </div>
       )}
       {groups.map((g) => (
         <div key={g} className="mb-6">
           <div className="eyebrow">{g}{sub[g] && <span className="normal-case tracking-normal"> · {sub[g]}</span>}</div>
-          <div className="panel !p-0 divide-y" style={{ borderColor: "#E4DDD0" }}>
+          <div className="panel !p-0 divide-y" style={{ borderColor: "var(--line)" }}>
             {items.filter((c) => c.group === g).map((c) => (
-              <ChecklistRow key={c.key} item={c} value={rec.checklist[c.key]} readOnly={readOnly} recId={rec.id} progress={rec.progress} setRec={setRec} />
+              <ChecklistRow key={c.key} item={c} value={rec.checklist[c.key]} readOnly={readOnly} recId={rec.id} progress={rec.progress} setRec={setRec} onUploaded={onUploaded} />
             ))}
           </div>
         </div>
@@ -40,7 +40,7 @@ export default function ChecklistTab({ rec, me, boot, setRec }) {
   );
 }
 
-function ChecklistRow({ item, value, readOnly, recId, progress, setRec }) {
+function ChecklistRow({ item, value, readOnly, recId, progress, setRec, onUploaded }) {
   const v = value || {};
   const [note, setNote] = useState(v.note || "");
   const [busy, setBusy] = useState(false);
@@ -67,6 +67,7 @@ function ChecklistRow({ item, value, readOnly, recId, progress, setRec }) {
       try {
         toast(`Uploading ${f.name}…`);
         setRec(await api.uploadDocument(recId, f.name, f.type || "application/octet-stream", await fileToBase64(f), item.key));
+        onUploaded?.();
         toast("Uploaded");
       } catch (e) { toast(e, true); }
     };
@@ -79,13 +80,13 @@ function ChecklistRow({ item, value, readOnly, recId, progress, setRec }) {
         <div className="text-[15px]">{item.label}</div>
         {v.state && <div className="text-[12px] muted">{v.state === "waived" ? "Waived" : "Verified"} by {v.by} · {fmtDate(v.date)}</div>}
       </div>
-      <div className="inline-flex rounded-lg border overflow-hidden w-fit" style={{ borderColor: "#E4DDD0" }}>
+      <div className="inline-flex rounded-lg border overflow-hidden w-fit" style={{ borderColor: "var(--line)" }}>
         {STATES.map(([s, label, color], i) => {
           const on = (v.state || "") === s;
           return (
             <button key={label} disabled={readOnly || busy} onClick={() => !on && setState(s)}
               className="px-3 py-1.5 text-[13px] disabled:cursor-not-allowed"
-              style={{ background: on ? color : "#fff", color: on ? "#fff" : "#2B3A42", borderLeft: i ? "1px solid #E4DDD0" : "none" }}>
+              style={{ background: on ? color : "#fff", color: on ? "#fff" : "var(--ink)", borderLeft: i ? "1px solid var(--line)" : "none" }}>
               {label}
             </button>
           );
