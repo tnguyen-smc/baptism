@@ -2,27 +2,34 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "./api.js";
 import { currentUser, initAuth, onAuthChange, signOut } from "./auth.js";
 import { useRoute } from "./hooks/useRoute.js";
+import { clearBoot, loadBoot, saveBoot } from "./cache.js";
 import LoginScreen from "./components/LoginScreen.jsx";
 import TopBar from "./components/TopBar.jsx";
 import DirectoryScreen from "./components/DirectoryScreen.jsx";
 import RecordScreen from "./components/RecordScreen.jsx";
 import { Spinner, Toasts } from "./components/Shared.jsx";
 
-/** The directory's lightweight view of a full record (mirrors summary_ in Code.gs). */
+/**
+ * The directory's view of a record. Accepts both the current full records and the older
+ * summary format (from a not-yet-updated Apps Script deployment), so neither can crash the page.
+ */
 export function summarize(rec) {
+  const p = rec.progress || { done: Number(rec.done) || 0, total: Number(rec.total) || 0 };
   return {
-    id: rec.id, status: rec.status, child: rec.childName,
-    parents: [rec.fatherName, rec.motherName].filter(Boolean).join(" & "),
+    id: rec.id, status: rec.status, child: rec.childName || rec.child || "(no name)",
+    parents: rec.parents || [rec.fatherName, rec.motherName].filter(Boolean).join(" & "),
     proposedDate: rec.proposedDate, interviewAt: rec.interviewAt, baptismAt: rec.baptismAt,
-    actualDate: rec.actualDate, createdAt: rec.createdAt, archived: rec.archived === "TRUE",
-    done: rec.progress.done, total: rec.progress.total,
+    actualDate: rec.actualDate, createdAt: rec.createdAt, archived: rec.archived === true || rec.archived === "TRUE",
+    done: p.done, total: p.total,
   };
 }
 
 export default function App() {
   const { route, go } = useRoute();
   const [user, setUser] = useState(currentUser);
-  const [boot, setBoot] = useState(null);
+  // Start from the copy saved in this browser (instant), then refresh from the server.
+  const [boot, setBoot] = useState(() => loadBoot(currentUser()?.email));
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -33,10 +40,17 @@ export default function App() {
   const load = useCallback(() => {
     setError(null);
     // Show the server's reason on the login screen (e.g. "not on the Staff list", "different app").
-    return api.bootstrap().then(setBoot).catch((e) => setError(e.message));
+    setRefreshing(true);
+    return api.bootstrap().then(setBoot).catch((e) => setError(e.message)).finally(() => setRefreshing(false));
   }, []);
 
-  useEffect(() => { if (user) load(); else setBoot(null); }, [user?.email, load]);
+  useEffect(() => {
+    if (user) { setBoot((b) => b || loadBoot(user.email)); load(); }
+    else setBoot(null);
+  }, [user?.email, load]);
+  // Keep the saved copy current (including edits made in this session).
+  useEffect(() => { if (boot && user) saveBoot(user.email, boot); }, [boot, user?.email]);
+  const logOut = () => { clearBoot(); signOut(); };
   // A successful new sign-in clears the previous error.
   useEffect(() => onAuthChange((u) => { if (u) setError(null); }), []);
 
@@ -62,7 +76,7 @@ export default function App() {
             <p className="mb-6" style={{ color: "var(--warn)" }}>{error}</p>
             <div className="flex gap-2 justify-center">
               <button className="btn" onClick={load}>Try again</button>
-              <button className="btn" onClick={signOut}>Use another account</button>
+              <button className="btn" onClick={logOut}>Use another account</button>
             </div>
           </div>
         ) : <Spinner label="Opening the parish records…" />}
@@ -73,11 +87,16 @@ export default function App() {
 
   return (
     <div className="min-h-screen">
-      <TopBar parish={boot.parish} me={boot.me} formUrl={boot.formUrl} onHome={() => go("/")} onSignOut={signOut} />
+      {error && (
+        <div className="text-[13px] text-center px-4 py-2" style={{ background: "var(--warn-soft)", color: "var(--warn)" }}>
+          Showing saved data — couldn’t refresh: {error} <button className="underline ml-1" onClick={load}>Try again</button>
+        </div>
+      )}
+      <TopBar parish={boot.parish} me={boot.me} formUrl={boot.formUrl} onHome={() => go("/")} onSignOut={logOut} />
       <main className="max-w-6xl mx-auto px-5 sm:px-8 py-8 pb-24">
         {route.name === "record"
           ? <RecordScreen key={route.id} id={route.id} boot={boot} onBack={() => go("/")} onChange={upsertRecord} />
-          : <DirectoryScreen boot={boot} summaries={summaries} go={go} onRefresh={load} />}
+          : <DirectoryScreen boot={boot} summaries={summaries} go={go} onRefresh={load} refreshing={refreshing} />}
       </main>
       <Toasts />
     </div>

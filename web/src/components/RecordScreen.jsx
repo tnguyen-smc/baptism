@@ -26,8 +26,9 @@ const TABS = [
 const STEP_TAB = ["form", "check", "approval", "approval", "approval", "registrar", "registrar"];
 
 export default function RecordScreen({ id, boot, onBack, onChange }) {
-  const cached = boot.records.find((r) => r.id.toLowerCase() === id.toLowerCase() ||
-    String(r.previousIds || "").toLowerCase().split(",").includes(id.toLowerCase()));
+  // Use the directory's copy only if it is a full record (older servers sent summaries only).
+  const cached = boot.records.find((r) => r.progress && (r.id.toLowerCase() === id.toLowerCase() ||
+    String(r.previousIds || "").toLowerCase().split(",").includes(id.toLowerCase())));
   const [rec, setRecState] = useState(cached || null);
   const [docs, setDocs] = useState(null);
   const [error, setError] = useState(null);
